@@ -11,20 +11,20 @@ from torch_geometric.loader import DataLoader
 # from torch_geometric.data.Dataset import DataLoader
 from torch_geometric.nn import NNConv, Set2Set
 from torch_geometric.utils import remove_self_loops
-
-from IPython import embed
-from ocpmodels.models.hdgnn.hdgnn_qm9 import *
+from ocpmodels.models.scn.scn_qm9 import *
 
 
 target = 0
 dim = 64
 batch_size = 128
 
+
 class MyTransform(object):
     def __call__(self, data):
         # Specify target.
         data.y = data.y[:, target]
         return data
+
 
 class Complete(object):
     def __call__(self, data):
@@ -72,38 +72,11 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size//2, shuffle=False)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 
-class Net(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.lin0 = torch.nn.Linear(dataset.num_features, dim)
-
-        nn = Sequential(Linear(5, 128), ReLU(), Linear(128, dim * dim))
-        self.conv = NNConv(dim, dim, nn, aggr='mean')
-        self.gru = GRU(dim, dim)
-
-        self.set2set = Set2Set(dim, processing_steps=3)
-        self.lin1 = torch.nn.Linear(2 * dim, dim)
-        self.lin2 = torch.nn.Linear(dim, 1)
-
-    def forward(self, data):
-        out = F.relu(self.lin0(data.x))
-        h = out.unsqueeze(0)
-
-        for i in range(3):
-            m = F.relu(self.conv(out, data.edge_index, data.edge_attr))
-            out, h = self.gru(m.unsqueeze(0), h)
-            out = out.squeeze(0)
-
-        out = self.set2set(out, data.batch)
-        out = F.relu(self.lin1(out))
-        out = self.lin2(out)
-        return out.view(-1)
-
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # model = Net().to(device)
-model = SphericalChannelNetwork().to(device)
+model = HDGNN().to(device)
 # model = 
 # model2 = Net().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -118,8 +91,6 @@ def train(epoch):
     loss_all = 0
     k = 0
     for data in tqdm.tqdm(train_loader):
-        # if k == 10:
-        #     break
         data = data.to(device)
         optimizer.zero_grad()
         loss = F.mse_loss(model(data), data.y)
@@ -160,7 +131,7 @@ def test(loader, MAD=False):
 
 
 best_val_error = None
-for epoch in range(1, 300):
+for epoch in range(1, 50):
     lr = scheduler.optimizer.param_groups[0]['lr']
     loss = train(epoch)
     val_error, _ = test(val_loader)
@@ -172,4 +143,3 @@ for epoch in range(1, 300):
 
     print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
           f'Val MAE: {val_error:.7f}, Test MAE: {test_error:.7f}, Test MAD:{MAD_error:.7f}')
-    print(exp_name)
