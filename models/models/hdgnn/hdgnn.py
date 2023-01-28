@@ -9,7 +9,6 @@ from IPython import embed
 import logging
 import time
 
-from ocpmodels.models.scn.cg import generate_clebsch_gordan
 import numpy as np
 import math
 import torch
@@ -23,18 +22,15 @@ from ocpmodels.common.utils import (
     radius_graph_pbc,
 )
 from ocpmodels.models.base import BaseModel
-from ocpmodels.models.scn.sampling import CalcSpherePoints
-from ocpmodels.models.scn.smearing import (
+from ocpmodels.models.hdgnn.sampling import CalcSpherePoints
+from ocpmodels.models.hdgnn.smearing import (
     GaussianSmearing,
     LinearSigmoidSmearing,
     SigmoidSmearing,
     SiLUSmearing,
 )
-from ocpmodels.models.scn.spherical_harmonics import SphericalHarmonicsHelper, SphericalHarmonicsHelper_4
-# from ocpmodels.models.scn.spherical_harmonics_4 import SphericalHarmonicsHelper_4
-
-from SEGNN.models.segnn.o3_building_blocks import O3TensorProduct, O3TensorProductSwishGate, O3SwishGate
-from SEGNN.models.balanced_irreps import BalancedIrreps, WeightBalancedIrreps
+from ocpmodels.models.hdgnn.spherical_harmonics import SphericalHarmonicsHelper, SphericalHarmonicsHelper_4
+# from ocpmodels.models.hdgnn.spherical_harmonics_4 import SphericalHarmonicsHelper_4
 
 try:
     import e3nn
@@ -1428,34 +1424,3 @@ class DistanceBlock2(torch.nn.Module):
         x_edge = self.act(self.fc1_edge_attr(x_edge))
 
         return x_edge
-
-class BasisGenerator(torch.nn.Module):
-    def __init__(self, lmax, direction=False):
-        super(BasisGenerator, self).__init__()
-        self.lmax = lmax
-        self.basis_num = (self.lmax + 1) ** 2
-        self.direction = direction
-
-        # TODO nn.Squential
-        self.fc = nn.Linear(3, self.basis_num)
-        self.act = e3nn.nn.S2Activation(o3.Irreps(str(o3.Irreps.spherical_harmonics(self.lmax))), nn.SiLU(), 100)
-
-    def forward(self, r):
-        shape = r.shape
-        if len(shape) == 3:
-            _, dim, c = shape
-            r = r.transpose(1, 2).reshape(-1, dim)
-
-        # eliminate the direction of edge (Option)
-        if not self.direction:
-            r[r[:, 2] < 0] = -r[r[:, 2] < 0]
-            r[(r[:, 2] == 0) & (r[:, 1] < 0)] = -r[(r[:, 2] == 0) & (r[:, 1] < 0)]
-            r[(r[:, 2] == 0) & (r[:, 1] == 0) & (r[:, 0] < 0)] = -r[(r[:, 2] == 0) & (r[:, 1] == 0) & (r[:, 0] < 0)]
-
-        # building basis
-        sh = self.fc(r)  
-        sh = self.act(sh)
-
-        if len(shape) == 3:
-            sh = sh.reshape(-1, c, self.basis_num).transpose(1, 2)
-        return sh
