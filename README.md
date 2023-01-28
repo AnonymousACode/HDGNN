@@ -1,2 +1,3 @@
 # HDRNN
-The implementation of ``HDRNN: Graph Neural Networks with Learnable Equivariance for Molecular System''
+The Pytoch implementation of ``Hybrid Directional Graph Neural Network with Learnable Equivariance''
+
