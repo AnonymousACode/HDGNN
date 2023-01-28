@@ -13,29 +13,18 @@ from torch_geometric.nn import NNConv, Set2Set
 from torch_geometric.utils import remove_self_loops
 
 from IPython import embed
-from estorch.datasets import CHARGES_KEY
-from estorch.datasets.fghdnnp_test import FGHDNNPDataset
-# CHARGES_KEY = "charges"
-from nequip.data import AtomicDataDict
-from nequip.nn import RescaleOutput
-from nequip.utils import Config, dataset_from_config
-from nequip.utils.test import assert_AtomicData_equivariant, set_irreps_debug
-from ocpmodels.models.scn.scn_qm9 import *
-# from SEGNN.models.segnn.segnn import *
+from ocpmodels.models.hdgnn.hdgnn_qm9 import *
 
 
-target = 2
+target = 0
 dim = 64
 batch_size = 128
-exp_name = '4interactions_' + str(batch_size) + '_batch_' + str(target) + 'with_time_res'
-
 
 class MyTransform(object):
     def __call__(self, data):
         # Specify target.
         data.y = data.y[:, target]
         return data
-
 
 class Complete(object):
     def __call__(self, data):
@@ -137,7 +126,6 @@ def train(epoch):
         loss.backward()
         loss_all += loss.item() * data.num_graphs
         optimizer.step()
-        # k += 1
         # if k % 500 == 0:
             # print(f'Loss: {loss:.7f}') 
     return loss_all / len(train_loader.dataset)
@@ -158,9 +146,6 @@ def test(loader, MAD=False):
     MAD_error = 0
     k = 0
     for data in tqdm.tqdm(loader):
-        # k+=1
-        # if k==10:
-        #     break
         data = data.to(device)
         error_temp = (model(data) * std - data.y * std).abs()
         if MAD:
@@ -175,7 +160,7 @@ def test(loader, MAD=False):
 
 
 best_val_error = None
-for epoch in range(1, 50):
+for epoch in range(1, 300):
     lr = scheduler.optimizer.param_groups[0]['lr']
     loss = train(epoch)
     val_error, _ = test(val_loader)
@@ -184,7 +169,6 @@ for epoch in range(1, 50):
     if best_val_error is None or val_error <= best_val_error:
         test_error, MAD_error = test(test_loader, MAD=True)
         best_val_error = val_error
-        # torch.save(model, exp_name)
 
     print(f'Epoch: {epoch:03d}, LR: {lr:7f}, Loss: {loss:.7f}, '
           f'Val MAE: {val_error:.7f}, Test MAE: {test_error:.7f}, Test MAD:{MAD_error:.7f}')
