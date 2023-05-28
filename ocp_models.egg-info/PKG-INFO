@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: ocp-models
+Version: 0.0.3
+Summary: Machine learning models for use in catalysis as part of the Open Catalyst Project
+Home-page: https://github.com/Open-Catalyst-Project/ocp
+License-File: LICENSE.md
